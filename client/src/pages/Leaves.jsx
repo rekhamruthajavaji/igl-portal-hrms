@@ -97,11 +97,11 @@ export default function Leaves() {
               const isOwn = user.employee && l.employee_code === user.employee.employee_code;
               // A pending leave is actionable by:
               //   - a manager who is the employee's direct manager (backend enforces)
-              //   - HR/admin only when employee has no manager (top-level case)
+              //   - HR/admin when the employee has no manager (top-level) OR when HR is themselves the direct manager
               const canActOnPending =
                 l.status === 'pending' && !isOwn && (
                   user.role === 'manager' ||
-                  (user.role === 'admin' && !l.employee_manager_id)
+                  (user.role === 'admin' && (!l.employee_manager_id || l.employee_manager_id === user.employee?.id))
                 );
               return (
                 <tr key={l.id}>
@@ -121,10 +121,10 @@ export default function Leaves() {
                   </td>
                   <td>
                     {canActOnPending && (
-                      <>
-                        <button className="btn btn-sm btn-success" onClick={() => approve(l.id)} style={{ marginRight: 4 }}>Approve</button>
+                      <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+                        <button className="btn btn-sm btn-success" onClick={() => approve(l.id)}>Approve</button>
                         <button className="btn btn-sm btn-danger" onClick={() => reject(l.id)}>Reject</button>
-                      </>
+                      </div>
                     )}
                     {l.status === 'pending' && isOwn && (
                       <button className="btn btn-sm btn-secondary" onClick={() => cancel(l.id)}>Cancel</button>

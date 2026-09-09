@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import db, { logAudit } from '../db.js';
+import { holidayStateFor } from '../data/holidays2026.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
@@ -7,14 +8,9 @@ router.use(authenticate);
 
 router.get('/', (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  let state = req.query.state;
-  if (!state && req.user.role === 'employee') state = req.user.employee?.state || null;
-  let rows;
-  if (state) {
-    rows = db.prepare(`SELECT * FROM holidays WHERE strftime('%Y', date) = ? AND (state = 'ALL' OR state = ?) ORDER BY date`).all(String(year), state);
-  } else {
-    rows = db.prepare(`SELECT * FROM holidays WHERE strftime('%Y', date) = ? ORDER BY date`).all(String(year));
-  }
+  // Honor an explicit filter (admin), otherwise use the viewer's own location. Both resolve to AP / TS / DEL.
+  const state = holidayStateFor(req.query.state || req.user.employee?.state);
+  const rows = db.prepare("SELECT * FROM holidays WHERE strftime('%Y', date) = ? AND state = ? ORDER BY date").all(String(year), state);
   res.json(rows);
 });
 

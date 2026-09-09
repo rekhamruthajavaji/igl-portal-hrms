@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import db from './db.js';
 import authRouter from './routes/auth.js';
 import employeesRouter from './routes/employees.js';
+import probationLettersRouter from './routes/probationLetters.js';
 import orgRouter from './routes/departments.js';
 import leavesRouter from './routes/leaves.js';
 import holidaysRouter from './routes/holidays.js';
@@ -18,6 +19,9 @@ import notificationsRouter from './routes/notifications.js';
 import documentsRouter from './routes/documents.js';
 import reportsRouter from './routes/reports.js';
 import managerRouter from './routes/manager.js';
+import offboardingRouter from './routes/offboarding.js';
+import ticketsRouter from './routes/tickets.js';
+import accessRouter from './routes/access.js';
 
 // === CORS: accept localhost dev URLs + any *.vercel.app deployments + the configured CLIENT_URL ===
 const allowList = (process.env.CLIENT_URL || '')
@@ -59,6 +63,7 @@ const clientDist = path.join(__dirnameApp, '..', '..', 'client', 'dist');
 
 app.use('/api/auth', authRouter);
 app.use('/api/employees', employeesRouter);
+app.use('/api/probation-letters', probationLettersRouter);
 app.use('/api/org', orgRouter);
 app.use('/api/leaves', leavesRouter);
 app.use('/api/holidays', holidaysRouter);
@@ -69,6 +74,9 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/manager', managerRouter);
+app.use('/api/offboarding', offboardingRouter);
+app.use('/api/tickets', ticketsRouter);
+app.use('/api/access', accessRouter);
 
 // === Serve the built React frontend (single-service deploy) ===
 // In production we build client/dist and serve it from this same server,

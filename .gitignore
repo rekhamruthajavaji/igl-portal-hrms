@@ -10,3 +10,4 @@ server/data/uploads/
 .vite/
 .DS_Store
 *.log
+.claude/

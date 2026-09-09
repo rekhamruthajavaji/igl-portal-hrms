@@ -7,10 +7,10 @@ export default function Documents() {
   const [rows, setRows] = useState([]);
   const [types, setTypes] = useState([]);
   const [status, setStatus] = useState([]);
-  const [type, setType] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [uploadingType, setUploadingType] = useState(null);
   const [err, setErr] = useState('');
   const fileRef = useRef();
+  const pendingTypeRef = useRef(null);
 
   const load = async () => {
     const [docs, t] = await Promise.all([
@@ -19,7 +19,6 @@ export default function Documents() {
     ]);
     setRows(docs.data);
     setTypes(t.data);
-    if (!type) setType(t.data[0]?.name || '');
     if (user.role !== 'employee') {
       const s = await api.get('/documents/status');
       setStatus(s.data);
@@ -32,25 +31,32 @@ export default function Documents() {
   const myTotalMandatory = types.filter(t => t.mandatory).length;
   const myPct = myTotalMandatory ? (myProgress / myTotalMandatory) * 100 : 0;
 
-  const upload = async (e) => {
-    e.preventDefault();
+  // Click a checklist tile -> open the file picker for that document type
+  const onTileClick = (t) => {
+    if (uploadingType) return;
     setErr('');
-    const file = fileRef.current.files[0];
-    if (!file) return;
-    if (!type) { setErr('Pick a document type first'); return; }
-    setBusy(true);
+    pendingTypeRef.current = t.name;
+    fileRef.current.value = '';
+    fileRef.current.click();
+  };
+
+  const onFilePicked = async (e) => {
+    const file = e.target.files[0];
+    const typeName = pendingTypeRef.current;
+    if (!file || !typeName) return;
+    setUploadingType(typeName);
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('name', type);
-    fd.append('type', type);
+    fd.append('name', typeName);
+    fd.append('type', typeName);
     try {
       await api.post('/documents/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      fileRef.current.value = '';
-      load();
+      await load();
     } catch (e2) {
       setErr(e2.response?.data?.error || 'Upload failed');
     } finally {
-      setBusy(false);
+      setUploadingType(null);
+      pendingTypeRef.current = null;
     }
   };
 
@@ -103,7 +109,10 @@ export default function Documents() {
         )}
       </div>
 
-      {/* Checklist (employee view) */}
+      {/* Hidden file input — triggered by clicking a checklist tile */}
+      <input type="file" ref={fileRef} onChange={onFilePicked} style={{ display: 'none' }} />
+
+      {/* Checklist (employee view) — click a tile to upload that document */}
       {user.role === 'employee' && types.length > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
@@ -111,21 +120,26 @@ export default function Documents() {
             <span style={{ fontSize: 12, color: 'var(--text-soft)' }}>{myProgress === myTotalMandatory ? 'All mandatory documents uploaded' : `${myTotalMandatory - myProgress} mandatory document(s) missing`}</span>
           </div>
           <div className="card-body">
+            {err && <div className="error-msg" style={{ marginBottom: 12 }}>{err}</div>}
             <div className="doc-checklist">
               {types.map(t => {
                 const has = myUploaded.has(t.name);
-                const cls = `doc-tile ${has ? 'done' : 'missing'} ${t.mandatory ? '' : 'optional'}`;
+                const isUploading = uploadingType === t.name;
+                const cls = `doc-tile doc-tile-clickable ${has ? 'done' : 'missing'} ${t.mandatory ? '' : 'optional'}`;
                 return (
-                  <div key={t.code} className={cls}>
+                  <div key={t.code} className={cls} role="button" tabIndex={0}
+                    onClick={() => onTileClick(t)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTileClick(t); } }}
+                    title={`Click to upload ${t.name}`}>
                     <div className="doc-tile-icon">{has ? tickIcon : (t.mandatory ? warnIcon : docIcon)}</div>
                     <div className="doc-tile-content">
                       <div className="doc-tile-title">
                         {t.name}
-                        {t.mandatory && <span className="badge badge-danger" style={{ padding: '1px 7px', fontSize: 10 }}>Mandatory</span>}
-                        {!t.mandatory && <span className="badge badge-default" style={{ padding: '1px 7px', fontSize: 10 }}>Optional</span>}
+                        {!has && t.mandatory && <span className="badge badge-danger" style={{ padding: '1px 7px', fontSize: 10 }}>Mandatory</span>}
+                        {!has && !t.mandatory && <span className="badge badge-default" style={{ padding: '1px 7px', fontSize: 10 }}>Optional</span>}
                       </div>
                       <div className="doc-tile-status">
-                        {has ? 'Uploaded' : (t.mandatory ? 'Pending upload' : 'Not uploaded')}
+                        {isUploading ? 'Uploading…' : has ? 'Uploaded · Click to replace' : 'Click to upload'}
                       </div>
                     </div>
                   </div>
@@ -135,33 +149,6 @@ export default function Documents() {
           </div>
         </div>
       )}
-
-      {/* Upload form */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-header"><h3>Upload Document</h3></div>
-        <div className="card-body">
-          {err && <div className="error-msg">{err}</div>}
-          <form onSubmit={upload}>
-            <div className="form-grid">
-              <div className="form-group full">
-                <label>Document Type *</label>
-                <select className="form-control" value={type} onChange={(e) => setType(e.target.value)} required>
-                  {types.map(t => (
-                    <option key={t.code} value={t.name}>
-                      {t.name} {t.mandatory ? '(Mandatory)' : '(Optional)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group full">
-                <label>File (max 10MB) *</label>
-                <input type="file" ref={fileRef} required />
-              </div>
-            </div>
-            <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Uploading...' : 'Upload'}</button>
-          </form>
-        </div>
-      </div>
 
       {/* HR / Manager — completion status across team */}
       {user.role !== 'employee' && (

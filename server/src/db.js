@@ -175,7 +175,77 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   details TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS offboardings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee_id INTEGER REFERENCES employees(id),
+  manager_id INTEGER REFERENCES employees(id),
+  initiated_by INTEGER REFERENCES users(id),
+  status TEXT DEFAULT 'pending_manager' CHECK(status IN ('pending_manager','cleared','completed','cancelled')),
+  manager_approved INTEGER DEFAULT 0,
+  approved_at TEXT,
+  last_day TEXT,
+  reason TEXT,
+  notes TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  cleared_at TEXT,
+  completed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS offboarding_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  offboarding_id INTEGER REFERENCES offboardings(id),
+  item_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  value TEXT,
+  file_path TEXT,
+  file_name TEXT,
+  submitted INTEGER DEFAULT 0,
+  submitted_at TEXT,
+  UNIQUE(offboarding_id, item_key)
+);
+
+CREATE TABLE IF NOT EXISTS tickets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id),
+  employee_id INTEGER REFERENCES employees(id),
+  category TEXT NOT NULL DEFAULT 'other',
+  subject TEXT NOT NULL,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved')),
+  admin_reply TEXT,
+  resolved_by INTEGER REFERENCES users(id),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  resolved_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS probation_letters (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee_id INTEGER NOT NULL REFERENCES employees(id),
+  sent_by INTEGER REFERENCES users(id),
+  sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','signed')),
+  signature TEXT,                 -- employee's drawn signature (PNG data URL)
+  signed_at TEXT,
+  emailed_at TEXT,                                     -- when the signed letter was emailed out
+  document_id INTEGER REFERENCES documents(id),        -- unsigned copy delivered to Documents
+  signed_document_id INTEGER REFERENCES documents(id)  -- signed copy after the employee signs
+);
 `);
+
+// Lightweight migrations for databases created before these columns existed.
+for (const sql of [
+  'ALTER TABLE offboardings ADD COLUMN manager_approved INTEGER DEFAULT 0',
+  'ALTER TABLE offboardings ADD COLUMN approved_at TEXT',
+  'ALTER TABLE employees ADD COLUMN pf_no TEXT',
+  'ALTER TABLE employees ADD COLUMN uan TEXT',
+  'ALTER TABLE payroll ADD COLUMN lop_days REAL DEFAULT 0',
+  'ALTER TABLE payroll ADD COLUMN lop_amount REAL DEFAULT 0',
+  'ALTER TABLE probation_letters ADD COLUMN emailed_at TEXT',
+]) {
+  try { db.exec(sql); } catch { /* column already exists */ }
+}
 
 export default db;
 

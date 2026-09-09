@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import db from '../db.js';
+import { holidayStateFor } from '../data/holidays2026.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
@@ -14,7 +15,7 @@ router.get('/dashboard', (req, res) => {
       JOIN leave_types lt ON lt.id = lb.leave_type_id
       WHERE lb.employee_id = ? AND lb.year = ?`).all(empId, year);
     const pending = db.prepare("SELECT COUNT(*) as c FROM leaves WHERE employee_id = ? AND status = 'pending'").get(empId);
-    const upcomingHolidays = db.prepare(`SELECT * FROM holidays WHERE date >= date('now') ORDER BY date LIMIT 5`).all();
+    const upcomingHolidays = db.prepare(`SELECT * FROM holidays WHERE date >= date('now') AND state = ? ORDER BY date LIMIT 5`).all(holidayStateFor(req.user.employee?.state));
     const recentPayslips = db.prepare(`SELECT * FROM payroll WHERE employee_id = ? ORDER BY year DESC, month DESC LIMIT 3`).all(empId);
     return res.json({ balances, pending_leaves: pending.c, upcoming_holidays: upcomingHolidays, recent_payslips: recentPayslips });
   }
@@ -30,7 +31,7 @@ router.get('/dashboard', (req, res) => {
     FROM leaves l JOIN leave_types lt ON lt.id = l.leave_type_id
     JOIN employees e ON e.id = l.employee_id
     ORDER BY l.applied_at DESC LIMIT 5`).all();
-  const upcomingHolidays = db.prepare(`SELECT * FROM holidays WHERE date >= date('now') ORDER BY date LIMIT 5`).all();
+  const upcomingHolidays = db.prepare(`SELECT * FROM holidays WHERE date >= date('now') AND state = ? ORDER BY date LIMIT 5`).all(holidayStateFor(req.user.employee?.state));
   res.json({
     total_employees: totalEmployees.c,
     pending_leaves: pendingLeaves.c,

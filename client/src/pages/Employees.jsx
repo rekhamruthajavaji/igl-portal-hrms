@@ -15,6 +15,10 @@ export default function Employees() {
   const [form, setForm] = useState({});
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
+  const [showOff, setShowOff] = useState(false);
+  const [offForm, setOffForm] = useState({});
+  const [offError, setOffError] = useState('');
+  const [offDone, setOffDone] = useState(false);
 
   const load = () => api.get('/employees').then(r => setRows(r.data));
   const loadMeta = () => {
@@ -44,11 +48,36 @@ export default function Employees() {
     }
   };
 
+  const offboard = async (e) => {
+    e.preventDefault();
+    setOffError('');
+    if (!offForm.employee_id) { setOffError('Select an employee to off-board'); return; }
+    try {
+      await api.post('/offboarding', {
+        employee_id: offForm.employee_id,
+        last_day: offForm.last_day,
+        reason: offForm.reason,
+        notes: offForm.notes,
+      });
+      setOffDone(true);
+      load();
+    } catch (err) {
+      setOffError(err.response?.data?.error || 'Failed to start off-boarding');
+    }
+  };
+
+  const closeOff = () => { setShowOff(false); setOffDone(false); setOffForm({}); setOffError(''); };
+
   return (
     <>
       <div className="page-hero hero-employees">
         <div><h2>Employees</h2><p>Manage your workforce across departments and teams.</p></div>
-        {user.role === 'admin' && <button className="btn btn-primary" onClick={() => setShow(true)}>+ Add Employee</button>}
+        {user.role === 'admin' && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-primary" onClick={() => setShow(true)}>On Boarding</button>
+            <button className="btn btn-primary" style={{ background: 'rgba(255,255,255,0.16)' }} onClick={() => setShowOff(true)}>Off Boarding</button>
+          </div>
+        )}
       </div>
 
       <div className="toolbar">
@@ -90,7 +119,7 @@ export default function Employees() {
         <div className="modal-overlay" onClick={() => { setShow(false); setCreated(null); }}>
           <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Add New Employee</h3>
+              <h3>Employee On Boarding</h3>
               <span className="close-btn" onClick={() => { setShow(false); setCreated(null); }}>×</span>
             </div>
             <div className="modal-body">
@@ -146,6 +175,54 @@ export default function Employees() {
                 </div>
                 <button className="btn btn-primary" type="submit">Create Employee</button>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showOff && (
+        <div className="modal-overlay" onClick={closeOff}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Employee Off Boarding</h3>
+              <span className="close-btn" onClick={closeOff}>×</span>
+            </div>
+            <div className="modal-body">
+              {offDone ? (
+                <div className="success-msg">
+                  Off-boarding started. The employee's <strong>manager</strong> has been notified to submit the exit clearances.
+                  Once all clearances are complete, you'll be notified to finalize the off-boarding from the <strong>Off Boarding</strong> page.
+                </div>
+              ) : (
+                <>
+                  {offError && <div className="error-msg">{offError}</div>}
+                  <form onSubmit={offboard}>
+                    <div className="form-grid">
+                      <div className="form-group full"><label>Employee *</label>
+                        <select className="form-control" required value={offForm.employee_id || ''} onChange={(e) => setOffForm({ ...offForm, employee_id: e.target.value })}>
+                          <option value="">-- Select employee --</option>
+                          {rows.filter(r => r.employment_status === 'active').map(r => (
+                            <option key={r.id} value={r.id}>{r.first_name} {r.last_name} ({r.employee_code})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group"><label>Last Working Day</label><input type="date" className="form-control" value={offForm.last_day || ''} onChange={(e) => setOffForm({ ...offForm, last_day: e.target.value })} /></div>
+                      <div className="form-group"><label>Reason</label>
+                        <select className="form-control" value={offForm.reason || ''} onChange={(e) => setOffForm({ ...offForm, reason: e.target.value })}>
+                          <option value="">-- Select --</option>
+                          <option>Resignation</option>
+                          <option>Termination</option>
+                          <option>Retirement</option>
+                          <option>End of contract</option>
+                          <option>Other</option>
+                        </select>
+                      </div>
+                      <div className="form-group full"><label>Notes</label><textarea className="form-control" value={offForm.notes || ''} onChange={(e) => setOffForm({ ...offForm, notes: e.target.value })} /></div>
+                    </div>
+                    <button className="btn btn-danger" type="submit">Off Board Employee</button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
         </div>

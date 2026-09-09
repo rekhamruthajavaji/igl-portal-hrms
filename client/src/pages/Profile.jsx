@@ -5,30 +5,53 @@ import { useAuth } from '../context/AuthContext';
 export default function Profile() {
   const { user } = useAuth();
   const [emp, setEmp] = useState(null);
-  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
+  const [editInfo, setEditInfo] = useState(false);
+  const [form, setForm] = useState({});
+  const [msg, setMsg] = useState('');
+
+  // Change-password modal
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pw, setPw] = useState({ newPassword: '', confirm: '' });
   const [pwMsg, setPwMsg] = useState({ type: '', text: '' });
+  const [pwBusy, setPwBusy] = useState(false);
 
-  useEffect(() => {
-    if (user?.employee?.id) api.get(`/employees/${user.employee.id}`).then(r => setEmp(r.data));
-  }, []);
+  const load = () => api.get(`/employees/${user.employee.id}`).then(r => { setEmp(r.data); setForm(r.data); });
+  useEffect(() => { if (user?.employee?.id) load(); }, []);
 
-  const changePass = async (e) => {
+  const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const saveInfo = async (e) => {
+    e.preventDefault();
+    await api.put('/employees/self', { phone: form.phone ?? null, dob: form.dob ?? null, state: form.state ?? null, address: form.address ?? null });
+    await load();
+    setEditInfo(false);
+    setMsg('✓ Your details were updated.');
+    setTimeout(() => setMsg(''), 4000);
+  };
+
+  const changePassword = async (e) => {
     e.preventDefault();
     setPwMsg({});
-    if (pwForm.newPassword !== pwForm.confirm) {
-      setPwMsg({ type: 'error', text: 'New passwords do not match' });
-      return;
-    }
+    if (pw.newPassword.length < 6) { setPwMsg({ type: 'error', text: 'Password must be at least 6 characters' }); return; }
+    if (pw.newPassword !== pw.confirm) { setPwMsg({ type: 'error', text: 'Passwords do not match' }); return; }
+    setPwBusy(true);
     try {
-      await api.post('/auth/change-password', { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
-      setPwMsg({ type: 'success', text: 'Password updated successfully' });
-      setPwForm({ currentPassword: '', newPassword: '', confirm: '' });
+      await api.post('/auth/set-password', { newPassword: pw.newPassword });
+      setPwMsg({ type: 'success', text: '✓ Password updated. Use it next time you sign in.' });
+      setPw({ newPassword: '', confirm: '' });
+      setTimeout(() => { setPwOpen(false); setPwMsg({}); }, 1500);
     } catch (err) {
-      setPwMsg({ type: 'error', text: err.response?.data?.error || 'Failed' });
+      setPwMsg({ type: 'error', text: err.response?.data?.error || 'Failed to update password' });
+    } finally {
+      setPwBusy(false);
     }
   };
 
   if (!emp) return <div className="loader" />;
+
+  const Row = ({ label, children }) => (
+    <div className="info-item"><label>{label}</label><div className="value">{children ?? '-'}</div></div>
+  );
 
   return (
     <>
@@ -41,36 +64,87 @@ export default function Profile() {
         </div>
       </div>
 
+      {msg && <div className="success-msg">{msg}</div>}
+
       <div className="grid-2">
+        {/* My Information */}
         <div className="card">
-          <div className="card-header"><h3>My Information</h3></div>
+          <div className="card-header">
+            <h3>My Information</h3>
+            {!editInfo && <button className="btn btn-sm btn-secondary" onClick={() => { setForm(emp); setEditInfo(true); }}>Edit</button>}
+          </div>
           <div className="card-body">
-            <div className="info-grid">
-              <div className="info-item"><label>Phone</label><div className="value">{emp.phone || '-'}</div></div>
-              <div className="info-item"><label>Date of Birth</label><div className="value">{emp.dob || '-'}</div></div>
-              <div className="info-item"><label>Joining Date</label><div className="value">{emp.joining_date}</div></div>
-              <div className="info-item"><label>State</label><div className="value">{emp.state || '-'}</div></div>
-              <div className="info-item"><label>Manager</label><div className="value">{emp.manager_name || '-'}</div></div>
-              <div className="info-item"><label>Team</label><div className="value">{emp.team_name || '-'}</div></div>
-              <div className="info-item" style={{ gridColumn: '1 / -1' }}><label>Address</label><div className="value">{emp.address || '-'}</div></div>
-            </div>
+            {!editInfo ? (
+              <div className="info-grid">
+                <Row label="Phone">{emp.phone}</Row>
+                <Row label="Date of Birth">{emp.dob}</Row>
+                <Row label="Joining Date">{emp.joining_date}</Row>
+                <Row label="State">{emp.state}</Row>
+                <Row label="Manager">{emp.manager_name}</Row>
+                <Row label="Team">{emp.team_name}</Row>
+                <div className="info-item" style={{ gridColumn: '1 / -1' }}><label>Address</label><div className="value">{emp.address || '-'}</div></div>
+              </div>
+            ) : (
+              <form onSubmit={saveInfo}>
+                <div className="form-grid">
+                  <div className="form-group"><label>Phone</label><input className="form-control" value={form.phone || ''} onChange={(e) => upd('phone', e.target.value)} /></div>
+                  <div className="form-group"><label>Date of Birth</label><input type="date" className="form-control" value={form.dob || ''} onChange={(e) => upd('dob', e.target.value)} /></div>
+                  <div className="form-group"><label>State</label><input className="form-control" value={form.state || ''} onChange={(e) => upd('state', e.target.value)} /></div>
+                  <div className="form-group full"><label>Address</label><textarea className="form-control" value={form.address || ''} onChange={(e) => upd('address', e.target.value)} /></div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary" type="submit">Save changes</button>
+                  <button className="btn btn-secondary" type="button" onClick={() => setEditInfo(false)}>Cancel</button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
 
+        {/* Password & Security — self-service change */}
         <div className="card">
-          <div className="card-header"><h3>Change Password</h3></div>
+          <div className="card-header"><h3>Password &amp; Security</h3></div>
           <div className="card-body">
-            {pwMsg.type === 'error' && <div className="error-msg">{pwMsg.text}</div>}
-            {pwMsg.type === 'success' && <div className="success-msg">{pwMsg.text}</div>}
-            <form onSubmit={changePass}>
-              <div className="form-group"><label>Current Password</label><input type="password" className="form-control" required value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} /></div>
-              <div className="form-group"><label>New Password</label><input type="password" className="form-control" required value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} /></div>
-              <div className="form-group"><label>Confirm New Password</label><input type="password" className="form-control" required value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} /></div>
-              <button className="btn btn-primary" type="submit">Update Password</button>
-            </form>
+            <p style={{ fontSize: 13, color: 'var(--text-soft)', marginTop: 0, lineHeight: 1.6 }}>
+              Update your account password anytime. Choose a strong password you'll remember.
+            </p>
+            <button className="btn btn-primary" onClick={() => { setPw({ newPassword: '', confirm: '' }); setPwMsg({}); setPwOpen(true); }}>
+              Change Password
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Bank & Tax details — view only */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-header"><h3>Bank &amp; Tax Details</h3></div>
+        <div className="card-body">
+          <div className="info-grid">
+            <Row label="Bank Name">{emp.bank_name}</Row>
+            <Row label="Account Number">{emp.bank_account}</Row>
+            <Row label="IFSC">{emp.ifsc}</Row>
+            <Row label="PAN">{emp.pan}</Row>
+          </div>
+        </div>
+      </div>
+
+      {/* Change Password modal */}
+      {pwOpen && (
+        <div className="modal-overlay" onClick={() => setPwOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header"><h3>Change Password</h3><span className="close-btn" onClick={() => setPwOpen(false)}>×</span></div>
+            <div className="modal-body">
+              {pwMsg.type === 'error' && <div className="error-msg">{pwMsg.text}</div>}
+              {pwMsg.type === 'success' && <div className="success-msg">{pwMsg.text}</div>}
+              <form onSubmit={changePassword}>
+                <div className="form-group"><label>New Password</label><input type="password" className="form-control" required value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} placeholder="At least 6 characters" autoFocus /></div>
+                <div className="form-group"><label>Confirm New Password</label><input type="password" className="form-control" required value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></div>
+                <button className="btn btn-primary btn-block" type="submit" disabled={pwBusy}>{pwBusy ? 'Updating…' : 'Update Password'}</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

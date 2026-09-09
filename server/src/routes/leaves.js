@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import db, { logAudit, createNotification } from '../db.js';
+import { holidayStateFor } from '../data/holidays2026.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
@@ -21,6 +22,27 @@ function businessDays(start, end) {
 
 router.get('/types', (_req, res) => {
   res.json(db.prepare('SELECT * FROM leave_types ORDER BY name').all());
+});
+
+// Team leave calendar: approved leaves overlapping a month + that month's holidays.
+router.get('/calendar', (req, res) => {
+  const month = Number(req.query.month) || new Date().getMonth() + 1;
+  const year = Number(req.query.year) || new Date().getFullYear();
+  const mm = String(month).padStart(2, '0');
+  const from = `${year}-${mm}-01`;
+  const to = `${year}-${mm}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
+  const leaves = db.prepare(`
+    SELECT l.start_date, l.end_date, l.days, lt.name AS leave_type, lt.code,
+           e.first_name || ' ' || e.last_name AS employee_name, e.employee_code, u.email
+    FROM leaves l
+    JOIN leave_types lt ON lt.id = l.leave_type_id
+    JOIN employees e ON e.id = l.employee_id
+    JOIN users u ON u.id = e.user_id
+    WHERE l.status = 'approved' AND NOT (l.end_date < ? OR l.start_date > ?)
+    ORDER BY l.start_date`).all(from, to);
+  const holidays = db.prepare('SELECT name, date, state FROM holidays WHERE date BETWEEN ? AND ? AND state = ? ORDER BY date')
+    .all(from, to, holidayStateFor(req.user.employee?.state));
+  res.json({ leaves, holidays, from, to });
 });
 
 router.get('/balances', (req, res) => {
@@ -50,13 +72,14 @@ router.get('/', (req, res) => {
     LEFT JOIN employees a ON a.id = l.approver_id
   `;
   if (req.user.role === 'admin') {
-    // HR sees their own leaves (all statuses) + others' leaves only after manager decides.
-    // Plus: top-level leaves (employee has no manager) — HR is the approver, so they must see those pending too.
+    // HR sees their own leaves (all statuses) + others' leaves once a manager has decided,
+    // + top-level leaves (no manager), + any pending leaves where HR is the direct manager.
     rows = db.prepare(`${base}
       WHERE l.employee_id = ?
          OR l.status != 'pending'
          OR e.manager_id IS NULL
-      ORDER BY l.applied_at DESC`).all(req.user.employee.id);
+         OR e.manager_id = ?
+      ORDER BY l.applied_at DESC`).all(req.user.employee.id, req.user.employee.id);
   } else if (req.user.role === 'manager') {
     rows = db.prepare(`${base} WHERE e.manager_id = ? OR e.id = ? ORDER BY l.applied_at DESC`).all(req.user.employee.id, req.user.employee.id);
   } else {
@@ -99,8 +122,9 @@ router.post('/', (req, res) => {
 function checkApprover(reqUser, employeeId) {
   const emp = db.prepare('SELECT manager_id FROM employees WHERE id = ?').get(employeeId);
   if (emp.manager_id) {
-    if (reqUser.role === 'manager' && reqUser.employee.id === emp.manager_id) return { ok: true };
-    if (reqUser.role === 'admin') return { error: 'Only the direct manager can approve or reject this request. HR cannot override.' };
+    // The direct manager can always act — even if they also hold the admin role.
+    if (reqUser.employee && reqUser.employee.id === emp.manager_id) return { ok: true };
+    if (reqUser.role === 'admin') return { error: 'Only the direct manager can approve or reject this request.' };
     return { error: 'Not your team member' };
   }
   if (reqUser.role === 'admin') return { ok: true };

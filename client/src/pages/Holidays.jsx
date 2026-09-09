@@ -3,13 +3,11 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
 const STATES = [
-  { code: 'ALL', name: 'All Locations' },
-  { code: 'AP', name: 'Andhra Pradesh' }, { code: 'KA', name: 'Karnataka' },
-  { code: 'KL', name: 'Kerala' }, { code: 'TN', name: 'Tamil Nadu' },
-  { code: 'TS', name: 'Telangana' }, { code: 'MH', name: 'Maharashtra' },
-  { code: 'DL', name: 'Delhi' }, { code: 'GJ', name: 'Gujarat' },
-  { code: 'WB', name: 'West Bengal' }, { code: 'UP', name: 'Uttar Pradesh' },
+  { code: 'AP', name: 'Andhra Pradesh' },
+  { code: 'TS', name: 'Telangana' },
+  { code: 'DEL', name: 'New Delhi' },
 ];
+const STATE_NAME = { AP: 'Andhra Pradesh', TS: 'Telangana', DEL: 'New Delhi' };
 
 export default function Holidays() {
   const { user } = useAuth();
@@ -51,9 +49,9 @@ export default function Holidays() {
         <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
           {[year-1, year, year+1].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
-        <label>State:</label>
+        <label>Location:</label>
         <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
-          <option value="">All / Default</option>
+          <option value="">My location</option>
           {STATES.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
         </select>
         <span style={{ marginLeft: 'auto', color: 'var(--text-soft)' }}>{rows.length} holidays</span>
@@ -71,7 +69,7 @@ export default function Holidays() {
               </div>
               <div className="holiday-info" style={{ flex: 1 }}>
                 <h4>{h.name}</h4>
-                <p>{d.toLocaleDateString('en-US', { weekday: 'long' })} · {h.state === 'ALL' ? 'National' : h.state}</p>
+                <p>{d.toLocaleDateString('en-US', { weekday: 'long' })} · {STATE_NAME[h.state] || h.state}</p>
               </div>
               {user.role === 'admin' && <button className="btn btn-sm btn-secondary" onClick={() => del(h.id)}>Delete</button>}
             </div>
@@ -87,8 +85,8 @@ export default function Holidays() {
               <form onSubmit={save}>
                 <div className="form-group"><label>Holiday Name *</label><input className="form-control" required value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                 <div className="form-group"><label>Date *</label><input type="date" className="form-control" required value={form.date || ''} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-                <div className="form-group"><label>State</label>
-                  <select className="form-control" value={form.state || 'ALL'} onChange={(e) => setForm({ ...form, state: e.target.value })}>
+                <div className="form-group"><label>Location</label>
+                  <select className="form-control" value={form.state || 'AP'} onChange={(e) => setForm({ ...form, state: e.target.value })}>
                     {STATES.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
                   </select>
                 </div>
