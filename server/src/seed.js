@@ -3,6 +3,12 @@ import bcrypt from 'bcryptjs';
 import db from './db.js';
 import { HOLIDAYS_2026 } from './data/holidays2026.js';
 import { SALARIES_2026 } from './data/salaries2026.js';
+import { BANK_DETAILS_2026 } from './data/bankDetails2026.js';
+
+// Per-employee login password overrides (by email). Everyone else uses the default.
+const PASSWORD_OVERRIDES = {
+  'rehan.feroz@libraryone.com': 'RehanFeroz@04',
+};
 
 const hash = (p) => bcrypt.hashSync(p, 10);
 
@@ -55,7 +61,7 @@ const ROSTER = [
   ['PRANEEL KUMAR PERURU', 'Director - India Operations', '2026-01-01', '9391573093', 'praneel.peruru@libraryone.com'],
   ['SEETHAKA VYSHNAVI', 'Software Engineer', '2026-01-01', '9490431313', 'vyshnavi.seethaka@libraryone.com'],
   ['DANDE GEETHANJALI', 'Software Engineer', '2026-01-01', '9110347340', 'geethanjali.dande@libraryone.com'],
-  ['VIJAYA DURGA CHINTHA', 'Software Engineer', '2026-01-01', '9951010056'],
+  null, // VIJAYA DURGA CHINTHA — no longer a current employee (slot kept so other IG-IND codes don't shift; IG-IND-0004 stays vacant)
   ['MANU KUMAR', 'Data Analyst', '2026-01-19', '9958218461', 'manu.kumar@libraryone.com'],
   ['PARAS KOLI', 'Data Analyst', '2026-01-19', '9911807966', 'paras.koli@libraryone.com'],
   ['RISHABH SRIVASTAVA', 'Data Analyst', '2026-01-19', '7376726451', 'rishabh.srivastava@libraryone.com'],
@@ -103,7 +109,9 @@ const titleCase = (s) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()
 const usedEmails = new Set();
 
 const created = []; // { empId, userId, role }
-ROSTER.forEach(([rawName, designation, doj, phone, emailOverride, salaryOverride], i) => {
+ROSTER.forEach((row, i) => {
+  if (!row) return; // vacated slot (e.g. IG-IND-0004) — keeps later codes stable
+  const [rawName, designation, doj, phone, emailOverride, salaryOverride] = row;
   const name = titleCase(rawName);
   const parts = name.split(/\s+/);
   const first = parts[0];
@@ -124,7 +132,7 @@ ROSTER.forEach(([rawName, designation, doj, phone, emailOverride, salaryOverride
   usedEmails.add(email);
 
   const role = isBoss ? 'admin' : 'employee';
-  const password = isBoss ? 'Admin@123' : 'Igenie@2026';
+  const password = isBoss ? 'Admin@123' : (PASSWORD_OVERRIDES[email] || 'Igenie@2026');
   const { dept, tier } = classify(designation);
   const [basic, hra, allowances, deductions] = salaryOverride || SAL[tier];
   const code = `IG-IND-${String(i + 1).padStart(4, '0')}`;
@@ -149,6 +157,22 @@ db.prepare('UPDATE employees SET manager_id = ? WHERE id != ?').run(boss.empId, 
 for (const [code, s] of Object.entries(SALARIES_2026)) {
   db.prepare('UPDATE employees SET basic_salary = ?, hra = ?, allowances = ?, deductions = ? WHERE employee_code = ?')
     .run(s.basic, s.hra, s.allowances, s.deductions, code);
+}
+
+// Bank & tax details. The committed module holds only PLACEHOLDER data; the REAL values are
+// injected on the server from the secret BANK_DETAILS_JSON env var, so no real PII is in source.
+let BANK_DETAILS = BANK_DETAILS_2026;
+if (process.env.BANK_DETAILS_JSON) {
+  try { BANK_DETAILS = JSON.parse(process.env.BANK_DETAILS_JSON); }
+  catch { console.warn('BANK_DETAILS_JSON is not valid JSON — falling back to placeholder bank data.'); }
+}
+for (const c of created) {
+  const u = db.prepare('SELECT email FROM users WHERE id = ?').get(c.userId);
+  const b = u && BANK_DETAILS[u.email];
+  if (b) {
+    db.prepare('UPDATE employees SET bank_name = ?, bank_account = ?, ifsc = ?, pan = ? WHERE id = ?')
+      .run(b.bank_name, b.bank_account, b.ifsc, b.pan, c.empId);
+  }
 }
 
 // ── Teams: one per department, led by the Director ──

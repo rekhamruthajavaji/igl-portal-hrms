@@ -1,0 +1,26 @@
+// PLACEHOLDER bank/tax details only — NOT real. Safe to commit (public repo).
+// Real values are injected on the server from the BANK_DETAILS_JSON env var (see seed.js).
+export const BANK_DETAILS_2026 = {
+  'praneel.peruru@libraryone.com': { bank_name: 'Example Bank Ltd', bank_account: '100000000000', ifsc: 'DEMO0000000', pan: 'AAAAA1000A' },
+  'vyshnavi.seethaka@libraryone.com': { bank_name: 'Sample National Bank', bank_account: '100000000001', ifsc: 'DEMO0000001', pan: 'AAAAA1001A' },
+  'geethanjali.dande@libraryone.com': { bank_name: 'Demo Bank of India', bank_account: '100000000002', ifsc: 'DEMO0000002', pan: 'AAAAA1002A' },
+  'manu.kumar@libraryone.com': { bank_name: 'Placeholder Bank', bank_account: '100000000003', ifsc: 'DEMO0000003', pan: 'AAAAA1003A' },
+  'paras.koli@libraryone.com': { bank_name: 'Example Bank Ltd', bank_account: '100000000004', ifsc: 'DEMO0000004', pan: 'AAAAA1004A' },
+  'rishabh.srivastava@libraryone.com': { bank_name: 'Sample National Bank', bank_account: '100000000005', ifsc: 'DEMO0000005', pan: 'AAAAA1005A' },
+  'mohd.abu@libraryone.com': { bank_name: 'Demo Bank of India', bank_account: '100000000006', ifsc: 'DEMO0000006', pan: 'AAAAA1006A' },
+  'mast.ram@libraryone.com': { bank_name: 'Placeholder Bank', bank_account: '100000000007', ifsc: 'DEMO0000007', pan: 'AAAAA1007A' },
+  'sandeshprabhakar.more@libraryone.com': { bank_name: 'Example Bank Ltd', bank_account: '100000000008', ifsc: 'DEMO0000008', pan: 'AAAAA1008A' },
+  'prasuna.rayavarapu@libraryone.com': { bank_name: 'Sample National Bank', bank_account: '100000000009', ifsc: 'DEMO0000009', pan: 'AAAAA1009A' },
+  'vignetha.archanapally@libraryone.com': { bank_name: 'Demo Bank of India', bank_account: '100000000010', ifsc: 'DEMO0000010', pan: 'AAAAA1010A' },
+  'rehan.feroz@libraryone.com': { bank_name: 'Placeholder Bank', bank_account: '100000000011', ifsc: 'DEMO0000011', pan: 'AAAAA1011A' },
+  'jaagruthi.prabhakar@libraryone.com': { bank_name: 'Example Bank Ltd', bank_account: '100000000012', ifsc: 'DEMO0000012', pan: 'AAAAA1012A' },
+  'kamal.kumar@libraryone.com': { bank_name: 'Sample National Bank', bank_account: '100000000013', ifsc: 'DEMO0000013', pan: 'AAAAA1013A' },
+  'supriya.dabral@libraryone.com': { bank_name: 'Demo Bank of India', bank_account: '100000000014', ifsc: 'DEMO0000014', pan: 'AAAAA1014A' },
+  'prem.singh@libraryone.com': { bank_name: 'Placeholder Bank', bank_account: '100000000015', ifsc: 'DEMO0000015', pan: 'AAAAA1015A' },
+  'sumanth.addanki@libraryone.com': { bank_name: 'Example Bank Ltd', bank_account: '100000000016', ifsc: 'DEMO0000016', pan: 'AAAAA1016A' },
+  'murali.myla@libraryone.com': { bank_name: 'Sample National Bank', bank_account: '100000000017', ifsc: 'DEMO0000017', pan: 'AAAAA1017A' },
+  'suhaas.sanapathi@libraryone.com': { bank_name: 'Demo Bank of India', bank_account: '100000000018', ifsc: 'DEMO0000018', pan: 'AAAAA1018A' },
+  'manoj.guntamukkala@libraryone.com': { bank_name: 'Placeholder Bank', bank_account: '100000000019', ifsc: 'DEMO0000019', pan: 'AAAAA1019A' },
+  'bhavani.veluri@libraryone.com': { bank_name: 'Example Bank Ltd', bank_account: '100000000020', ifsc: 'DEMO0000020', pan: 'AAAAA1020A' },
+  'phanindra.gandham@libraryone.com': { bank_name: 'Sample National Bank', bank_account: '100000000021', ifsc: 'DEMO0000021', pan: 'AAAAA1021A' },
+};
